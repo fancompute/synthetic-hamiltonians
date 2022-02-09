@@ -1,5 +1,9 @@
+from multiprocessing import Pool
+
 from tqdm import tqdm as tqdm_shell
 from tqdm.notebook import tqdm as tqdm_notebook
+
+from synthetic_hamiltonians import get_photon_occupancies
 
 
 def _is_notebook():
@@ -17,3 +21,32 @@ def _is_notebook():
 
 
 tqdm = tqdm_notebook if _is_notebook() else tqdm_shell
+
+
+def _parallel_evaluate_photon_occupancies(args_tuple):
+    '''Allows for evaluation of e^(i H t) * state in parallel.'''
+    t, H, state, n_time_bins, n_photons, use_ponomarev = args_tuple
+    state_evolved = (-1j * H * t).expm() * state
+    return get_photon_occupancies(state_evolved,
+                                  n_time_bins=n_time_bins,
+                                  n_photons=n_photons,
+                                  use_ponomarev=use_ponomarev)
+
+
+def parallel_evaluate_photon_occupancies(times, H, state,
+                                         display_progress=True,
+                                         pbar=None,
+                                         num_workers=8,
+                                         n_time_bins=None,
+                                         n_photons=None,
+                                         use_ponomarev=True):
+    '''Evaluates e^(i H t) * state in parallel.'''
+
+    args = [(t, H, state, n_time_bins, n_photons, use_ponomarev) for t in times]
+
+    with Pool(processes=num_workers) as p:
+        # results = p.starmap(_parallel_evaluate_photon_occupancies, tqdm(args, total=len(args)))
+        # results = p.starmap(_parallel_evaluate_photon_occupancies, pbar(args, total=len(args)))
+        results = list(tqdm(p.imap(_parallel_evaluate_photon_occupancies, args), total=len(args)))
+
+    return results
