@@ -27,7 +27,8 @@ def construct_BHH_propagator_2d_grid(nx, ny, toroidal=False,
                                      μ=None, U=None,
                                      include_coupling=True,
                                      include_chemical_potential=True,
-                                     include_onsite_interaction=True):
+                                     include_onsite_interaction=True,
+                                     use_ponomarev=False):
     num_nodes = nx * ny
     assert num_nodes == d
     nodes = list(range(num_nodes))
@@ -48,7 +49,7 @@ def construct_BHH_propagator_2d_grid(nx, ny, toroidal=False,
 
 def make_BH_Hamiltonian(nodes, edges, fock=None, μ=None, U=None,
                         include_coupling=True,
-                        include_chemical_potential=True,
+                        include_chemical_potential=False,
                         include_onsite_interaction=True,
                         use_ponomarev=False,
                         display_progress=False):
@@ -83,7 +84,7 @@ def make_BH_Hamiltonian(nodes, edges, fock=None, μ=None, U=None,
         for node in nodes:
             a = annihilator_for_site(site_index=node, total_sites=len(nodes), fock=fock, use_ponomarev=use_ponomarev)
             # a = get_annihilator_index(index=node, num_operators=len(nodes), fock=fock)
-            H += U * a.dag() * a * a * a.dag()
+            H += -1 * U * a.dag() * a.dag() * a * a
 
     return H
 

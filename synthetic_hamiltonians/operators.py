@@ -61,9 +61,8 @@ def annihilator_for_site(site_index, total_sites, fock, use_ponomarev=True):
         num_bosons = fock - 1
         return _get_ponomarev_annihilator(site_index, total_sites, num_bosons)
     else:
-        return qt.tensor([qt.qeye(fock) for _ in range(site_index)] + [qt.destroy(fock)] + [qt.qeye(fock) for _ in
-                                                                                            range(
-                                                                                                total_sites - site_index - 1)])
+        return qt.tensor([qt.qeye(fock) for _ in range(site_index)] + [qt.destroy(fock)] +
+                         [qt.qeye(fock) for _ in range(total_sites - site_index - 1)])
 
 
 def get_register_annihilator(n_time_bins, n_photons, fock_cutoff=None):
