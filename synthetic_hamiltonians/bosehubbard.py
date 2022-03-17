@@ -9,40 +9,11 @@ from synthetic_hamiltonians.ponomarev import ponomarev_index
 from synthetic_hamiltonians.utils import tqdm
 
 
-def construct_BHH_propagator_2d_grid(nx, ny, toroidal=False,
-                                     num_bosons=None, num_sites=None,
-                                     κ=0.1, α=0,
-                                     fock=None,
-                                     μ=None, U=None,
-                                     include_coupling=True,
-                                     include_chemical_potential=True,
-                                     include_onsite_interaction=True,  # TODO
-                                     use_ponomarev=False):
-    num_nodes = nx * ny
-    assert num_nodes == num_sites
-    nodes = list(range(num_nodes))
-    nodes_xy = np.array(nodes).reshape((ny, nx))
-    operations = []
-    for y in range(ny):
-        for x in range(nx):
-            if x < nx - 1 or toroidal:  # we're not at the right edge
-                operations.append(
-                    interact_bin_bin(bin1=nodes_xy[y, x], bin2=nodes_xy[y, (x + 1) % nx],
-                                     κ=κ, α=α, num_bosons=num_bosons, num_sites=num_sites))
-            if y < ny - 1 or toroidal:  # we're not at the bottom edge
-                operations.append(
-                    interact_bin_bin(bin1=nodes_xy[(y + 1) % ny, x], bin2=nodes_xy[y, x],
-                                     κ=κ, α=α, num_bosons=num_bosons, num_sites=num_sites))
-
-    # Compute the propagator for one iteration
-    return reduce(lambda U1, U2: U2 * U1, operations)  # left-multiplication
-
-
 def make_BH_Hamiltonian(nodes, edges, num_bosons=None, μ=None, U=None,
                         include_coupling=True,
                         include_chemical_potential=False,
                         include_onsite_interaction=True,
-                        use_ponomarev=False,
+                        use_ponomarev=True,
                         display_progress=False):
     '''
     Returns the actual Bose-Hubbard Hamiltonian for a list of lattice sites and a list of couplings between sites
@@ -81,14 +52,18 @@ def make_BH_Hamiltonian(nodes, edges, num_bosons=None, μ=None, U=None,
             a = annihilator_for_site(site=node, num_sites=len(nodes), num_bosons=num_bosons,
                                      use_ponomarev=use_ponomarev)
             # a = get_annihilator_index(index=node, num_operators=len(nodes), fock=fock)
-            H += -1 * μ * a.dag() * a
+            if type(μ) is int or type(μ) is float:
+                H += -1 * μ * a.dag() * a
+            else:  # μ is a list of potentials per site
+                H += -1 * μ[node] * a.dag() * a
 
     if include_onsite_interaction:
         for node in nodes:
             a = annihilator_for_site(site=node, num_sites=len(nodes), num_bosons=num_bosons,
                                      use_ponomarev=use_ponomarev)
             # a = get_annihilator_index(index=node, num_operators=len(nodes), fock=fock)
-            H += -1 * U * a.dag() * a.dag() * a * a
+            H += -1 * U * a.dag() * a * a.dag() * a
+            # H += -1 * U * a.dag() * a.dag() * a * a
 
     return H
 
@@ -124,20 +99,67 @@ def BHH_2d_grid(nx, ny, toroidal=False,
                                display_progress=display_progress)
 
 
+def BHH_ladder(length, width=2,
+               hopping_phase=0.0,
+               hopping_phase_mode="rung",  # "rung", "translation_invariant"
+               circular=False,
+               κ=0.1,
+               num_bosons=None,
+               μ=None, U=None,
+               include_coupling=True,
+               include_chemical_potential=True,
+               include_onsite_interaction=True,
+               use_ponomarev=True,
+               display_progress=False):
+    if hopping_phase_mode not in ["rung", "translation_invariant"]:
+        raise ValueError("Bad value for argument hopping_phase_mode")
+    num_nodes = length * width
+    nodes = list(range(num_nodes))
+    nodes_xy = np.array(nodes).reshape((length, width))
+    edges = []
+    for y in range(length):
+        for x in range(width):
+            if x < width - 1:  # we're not at the right edge
+                if hopping_phase_mode == "rung":
+                    α = y * hopping_phase
+                else:
+                    α = 0
+                edges.append(((nodes_xy[y, x], nodes_xy[y, x + 1]), κ, α))
+            # elif toroidal:
+            #     edges.append(((nodes_xy[y, x], nodes_xy[y, (x + 1) % nx]), κ, 0))
+            if y < length - 1 or circular:
+                if hopping_phase_mode == "translation_invariant":
+                    if x == 0:  # left ladder leg
+                        α = -1 * hopping_phase / 2
+                    else:  # right ladder leg
+                        α = hopping_phase / 2
+                else:
+                    α = 0
+                edges.append(((nodes_xy[y, x], nodes_xy[(y + 1) % length, x]), κ, α))
+
+    return make_BH_Hamiltonian(nodes, edges, num_bosons=num_bosons, μ=μ, U=U,
+                               include_coupling=include_coupling,
+                               include_chemical_potential=include_chemical_potential,
+                               include_onsite_interaction=include_onsite_interaction,
+                               use_ponomarev=use_ponomarev,
+                               display_progress=display_progress)
+
+
 def BHH_1d_line(num_nodes, toroidal=False,
                 κ=0.1,
+                α=0.0,
                 num_bosons=None,
                 μ=None, U=None,
                 include_coupling=True,
                 include_chemical_potential=True,
                 include_onsite_interaction=True,
-                use_ponomarev=False,
+                use_ponomarev=True,
                 display_progress=False):
     nodes = list(range(num_nodes))
     edges = []
     for i in range(num_nodes):
         if i < num_nodes - 1 or toroidal:  # we're not at the right edge
-            edges.append(((nodes[i], nodes[(i + 1) % num_nodes]), κ, 0))
+            edges.append(((nodes[i], nodes[(i + 1) % num_nodes]), κ, α))
     return make_BH_Hamiltonian(nodes, edges, num_bosons=num_bosons, μ=μ, U=U,
                                include_coupling=include_coupling,
                                include_chemical_potential=include_chemical_potential,

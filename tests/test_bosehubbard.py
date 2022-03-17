@@ -78,7 +78,7 @@ class BoseHubbardTest(unittest.TestCase):
         state space representations.'''
         kappa_list = [0.1, 1.0, 9.23]
         mu_list = [0.0, 1.0]
-        U_list = [1.0, 1.0, 9.85]
+        U_list = [0.0, 1.0, 9.85]
         toroidal_list = [False, True]
         hamiltonian_type_list = ["1d_line", "2d_grid"]
 

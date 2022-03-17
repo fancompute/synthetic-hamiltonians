@@ -66,33 +66,20 @@ def create_initial_state_all_photons_one_bin(num_sites, num_bosons,
 def get_photon_occupancies(state, num_sites=None, num_bosons=None, use_ponomarev=True):
     '''Returns a D+1 length list of photon number expectation values for each
     time bin plus the register (last element)'''
-    # if use_ponomarev:
-    #     # Get occupancies of the storage bins
-    #     expectations = []
-    #     for site in range(num_sites):
-    #         a = annihilator_for_site(site=site, num_sites=num_sites, num_bosons=num_bosons,
-    #         use_ponomarev=use_ponomarev)
-    #         expectations.append(qt.expect(a.dag() * a, state))
-    #     return expectations
-    #
-    # else:
-    #     expectations = []
-    #     N, D = get_n_d(state)
-    #     # Get occupancies of the storage bins
-    #     for i in range(D):
-    #         a = get_bin_annihilator(D, N, time_bin_index=i)
-    #         expectations.append(qt.expect(a.dag() * a, state))
-    #     # Append the register expectations
-    #     if not exclude_register:
-    #         a = get_register_annihilator(D, N)
-    #         expectations.append(qt.expect(a.dag() * a, state))
-    #     return expectations
-
-    # Get occupancies of the storage bins
     expectations = []
     for site in range(num_sites):
         a = annihilator_for_site(site=site, num_sites=num_sites, num_bosons=num_bosons, use_ponomarev=use_ponomarev)
         expectations.append(qt.expect(a.dag() * a, state))
+    return expectations
+
+
+def get_double_photon_occupancies(state, num_sites=None, num_bosons=None, use_ponomarev=True):
+    '''Returns a D+1 length list of double-photon number expectation values for each
+    time bin plus the register (last element)'''
+    expectations = []
+    for site in range(num_sites):
+        a = annihilator_for_site(site=site, num_sites=num_sites, num_bosons=num_bosons, use_ponomarev=use_ponomarev)
+        expectations.append(qt.expect(a.dag() * a.dag() * a * a, state))
     return expectations
 
 
