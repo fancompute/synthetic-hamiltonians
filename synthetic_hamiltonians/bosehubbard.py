@@ -13,6 +13,7 @@ def make_BH_Hamiltonian(nodes, edges, num_bosons=None, μ=None, U=None,
                         include_coupling=True,
                         include_chemical_potential=False,
                         include_onsite_interaction=True,
+                        add_extraneous_register_node=False,
                         use_ponomarev=True,
                         display_progress=False):
     '''
@@ -20,16 +21,23 @@ def make_BH_Hamiltonian(nodes, edges, num_bosons=None, μ=None, U=None,
     Args:
         nodes: a list of node indices, e.g. [1,2,3,4]
         edges: a list of couplings between edges with coupling constants and phases, e.g.
-               [((1,2), 0.1, np.pi), ((1,3), 0.15, np.pi/2), ...]
+            [((1,2), 0.1, np.pi), ((1,3), 0.15, np.pi/2), ...]
         num_bosons: the number of allowable bosons to support in the state space
         μ: chemical potential
         U: onsite interaction strength
         include_coupling: whether to include (κ a1.dag() a2 + H.c.) hopping terms in the Hamiltonian
         include_chemical_potential: whether to include (μ a.dag() a) terms in the Hamiltonian
         include_onsite_interaction: whether to include (U a.dag() a.dag() a a) terms in the Hamiltonian
+        add_extraneous_register_node: whether to include a non-interacting extra site at index=-1 (for the purposes
+            of comparing against the synthetically constructed version)
         use_ponomarev: whether to use the reduced Ponomarev state space representation
         display_progress: iterables will be wrapped in tqdm()
     '''
+
+    if add_extraneous_register_node:
+        # Add an additional site to represent the register time bin
+        nodes.append(max(nodes) + 1)
+
     if use_ponomarev:
         dim = ponomarev_index(num_bosons, len(nodes), exact_boson_number=False) + 1
         H = qt.qzero(dim)
@@ -75,6 +83,7 @@ def BHH_2d_grid(nx, ny, toroidal=False,
                 include_coupling=True,
                 include_chemical_potential=True,
                 include_onsite_interaction=True,
+                add_extraneous_register_node=False,
                 use_ponomarev=False,
                 display_progress=False):
     num_nodes = nx * ny
@@ -95,6 +104,7 @@ def BHH_2d_grid(nx, ny, toroidal=False,
                                include_coupling=include_coupling,
                                include_chemical_potential=include_chemical_potential,
                                include_onsite_interaction=include_onsite_interaction,
+                               add_extraneous_register_node=add_extraneous_register_node,
                                use_ponomarev=use_ponomarev,
                                display_progress=display_progress)
 
@@ -109,6 +119,7 @@ def BHH_ladder(length, width=2,
                include_coupling=True,
                include_chemical_potential=True,
                include_onsite_interaction=True,
+               add_extraneous_register_node=False,
                use_ponomarev=True,
                display_progress=False):
     if hopping_phase_mode not in ["rung", "translation_invariant"]:
@@ -141,6 +152,7 @@ def BHH_ladder(length, width=2,
                                include_coupling=include_coupling,
                                include_chemical_potential=include_chemical_potential,
                                include_onsite_interaction=include_onsite_interaction,
+                               add_extraneous_register_node=add_extraneous_register_node,
                                use_ponomarev=use_ponomarev,
                                display_progress=display_progress)
 
@@ -153,6 +165,7 @@ def BHH_1d_line(num_nodes, toroidal=False,
                 include_coupling=True,
                 include_chemical_potential=True,
                 include_onsite_interaction=True,
+                add_extraneous_register_node=False,
                 use_ponomarev=True,
                 display_progress=False):
     nodes = list(range(num_nodes))
@@ -164,5 +177,6 @@ def BHH_1d_line(num_nodes, toroidal=False,
                                include_coupling=include_coupling,
                                include_chemical_potential=include_chemical_potential,
                                include_onsite_interaction=include_onsite_interaction,
+                               add_extraneous_register_node=add_extraneous_register_node,
                                use_ponomarev=use_ponomarev,
                                display_progress=display_progress)

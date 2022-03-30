@@ -99,7 +99,7 @@ def construct_BHH_propagator(nodes, edges, num_bosons=None,
             # Greedily interact the nodes in ascending order of time bin
             if node1 < node2:
                 G = interact(node1, node2, κ, α) * G
-            elif node2 > node1:
+            elif node2 < node1:
                 G = interact(node1, node2, κ, -α) * G
             else:
                 raise ValueError(f"Can't interact node {node1} with itself!")

@@ -1,5 +1,9 @@
 from multiprocessing import Pool
 
+import qutip
+from scipy.linalg import logm
+import qutip as qt
+
 from tqdm import tqdm as tqdm_shell
 from tqdm.notebook import tqdm as tqdm_notebook
 
@@ -50,3 +54,12 @@ def parallel_evaluate_photon_occupancies(times, H, state,
         results = list(tqdm(p.imap(_parallel_evaluate_photon_occupancies, args), total=len(args)))
 
     return results
+
+
+def operator_log(op):
+    '''Returns the matrix log of a qutip operator'''
+    assert type(op) is qt.Qobj
+    mat = op.full()
+    log_mat = logm(mat)
+    return qutip.Qobj(log_mat)
+
