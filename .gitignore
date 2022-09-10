@@ -3,6 +3,7 @@ assets/frames/
 PennyLane_examples/
 logs/
 private/
+results/
 
 .DS_Store
 
