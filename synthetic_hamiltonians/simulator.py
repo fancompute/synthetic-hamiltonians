@@ -1,41 +1,11 @@
 import numpy as np
 
-from functools import reduce
 import qutip as qt
 
 from synthetic_hamiltonians.mzi import interact_bin_bin
 from synthetic_hamiltonians.operators import annihilator_for_site
 from synthetic_hamiltonians.ponomarev import ponomarev_index
 from synthetic_hamiltonians.utils import tqdm
-
-
-# def construct_BHH_propagator_2d_grid(nx, ny, toroidal=False,
-#                                      num_bosons=None, num_sites=None,
-#                                      κ=0.1, α=0,
-#                                      fock=None,
-#                                      μ=None, U=None,
-#                                      include_coupling=True,
-#                                      include_chemical_potential=True,
-#                                      include_onsite_interaction=True,  # TODO
-#                                      use_ponomarev=False):
-#     num_nodes = nx * ny
-#     assert num_nodes == num_sites
-#     nodes = list(range(num_nodes))
-#     nodes_xy = np.array(nodes).reshape((ny, nx))
-#     operations = []
-#     for y in range(ny):
-#         for x in range(nx):
-#             if x < nx - 1 or toroidal:  # we're not at the right edge
-#                 operations.append(
-#                     interact_bin_bin(bin1=nodes_xy[y, x], bin2=nodes_xy[y, (x + 1) % nx],
-#                                      κ=κ, α=α, num_bosons=num_bosons, num_sites=num_sites))
-#             if y < ny - 1 or toroidal:  # we're not at the bottom edge
-#                 operations.append(
-#                     interact_bin_bin(bin1=nodes_xy[(y + 1) % ny, x], bin2=nodes_xy[y, x],
-#                                      κ=κ, α=α, num_bosons=num_bosons, num_sites=num_sites))
-#
-#     # Compute the propagator for one iteration
-#     return reduce(lambda U1, U2: U2 * U1, operations)  # left-multiplication
 
 
 def construct_BHH_propagator(nodes, edges, num_bosons=None,
@@ -46,6 +16,7 @@ def construct_BHH_propagator(nodes, edges, num_bosons=None,
                              normalize_μ_U_by_iteration_time=True,
                              ordering="edges",
                              use_ponomarev=True,
+                             subdivide_iterations=False,
                              display_progress=False):
     '''
     Constructs a synthetic Bose-Hubbard Hamiltonian for a list of lattice sites and a list of couplings between sites
@@ -62,6 +33,8 @@ def construct_BHH_propagator(nodes, edges, num_bosons=None,
         use_ponomarev: whether to use the reduced Ponomarev state space representation
         normalize_μ_U_by_iteration_time: whether to normalize μ and U by iteration time
         ordering: order to interact the time bins in, can be "edges", "ascending", "random" TODO
+        subdivide_iterations: if True, a list of individual operations is returned in addition to the
+                aggregated propagator, as well as the number of elapsed clock cycles
         display_progress: iterables will be wrapped in tqdm()
     '''
     num_time_bins_including_register = len(nodes) + 1
@@ -79,14 +52,18 @@ def construct_BHH_propagator(nodes, edges, num_bosons=None,
         if include_onsite_interaction:
             H_nl = qt.tensor([qt.qzero(num_bosons + 1) for _ in range(num_time_bins_including_register)])
 
-    def interact(bin1, bin2, _κ, _α):
+    def interact(bin1, bin2, _κ, _α, subdivide=False):
         return interact_bin_bin(bin1, bin2, _κ, _α,
                                 num_bosons=num_bosons,
                                 num_sites=num_time_bins_including_register,
-                                use_ponomarev=use_ponomarev)
+                                use_ponomarev=use_ponomarev,
+                                subdivide=subdivide)
 
     clock_cycle = 0
     current_bin = 0
+    operations_per_clock_cycle = []  # only used if subdivide_iterations=True
+    if subdivide_iterations and (include_chemical_potential or include_onsite_interaction):
+        raise NotImplementedError("Subdivide_iterations only supported in tight-binding case!")
 
     pbar = tqdm if display_progress else lambda x: x
     if ordering == "edges":
@@ -96,19 +73,24 @@ def construct_BHH_propagator(nodes, edges, num_bosons=None,
 
     if include_coupling:
         for ((node1, node2), κ, α) in pbar(iterator):
+            previous_bin = current_bin
+
             # Greedily interact the nodes in ascending order of time bin
             if node1 < node2:
                 G = interact(node1, node2, κ, α) * G
+                if subdivide_iterations:
+                    operations_per_clock_cycle.extend(interact(node1, node2, κ, α, subdivide=True))
             elif node2 < node1:
                 G = interact(node1, node2, κ, -α) * G
+                if subdivide_iterations:
+                    operations_per_clock_cycle.extend(interact(node1, node2, κ, α, subdivide=True))
             else:
                 raise ValueError(f"Can't interact node {node1} with itself!")
 
             # Update the current time bin position and clock cycle
-            previous_bin = current_bin
             current_bin = max(node1, node2)
-            if current_bin < previous_bin:  # we've had to loop back around, so update the clock cycle
-                # Update clock cycle and apply
+            if current_bin < previous_bin or min(node1, node2) < previous_bin:
+                # we've had to loop back around, so update the clock cycle
                 clock_cycle += 1
 
     if include_chemical_potential:
@@ -139,7 +121,10 @@ def construct_BHH_propagator(nodes, edges, num_bosons=None,
 
         G = (-1j * H_nl * wall_time).expm() * G
 
-    return G
+    if subdivide_iterations:
+        return G, operations_per_clock_cycle, clock_cycle
+    else:
+        return G
 
 
 def construct_BHH_propagator_2d_grid(nx, ny, toroidal=False,
@@ -152,6 +137,7 @@ def construct_BHH_propagator_2d_grid(nx, ny, toroidal=False,
                                      normalize_μ_U_by_iteration_time=True,
                                      ordering="edges",
                                      use_ponomarev=True,
+                                     subdivide_iterations=False,
                                      display_progress=False):
     num_nodes = nx * ny
     nodes = list(range(num_nodes))
@@ -161,11 +147,11 @@ def construct_BHH_propagator_2d_grid(nx, ny, toroidal=False,
         for x in range(nx):
             if x < nx - 1:  # we're not at the right edge
                 edges.append(((nodes_xy[y, x], nodes_xy[y, x + 1]), κ, 0))
-            elif toroidal:
+            elif toroidal == True or toroidal == "x":
                 edges.append(((nodes_xy[y, x], nodes_xy[y, (x + 1) % nx]), κ, 0))
             if y < ny - 1:  # we're not at the bottom edge
                 edges.append(((nodes_xy[y, x], nodes_xy[y + 1, x]), κ, 0))
-            elif toroidal:
+            elif toroidal == True or toroidal == "y":
                 edges.append(((nodes_xy[y, x], nodes_xy[(y + 1) % ny, x]), κ, 0))
     return construct_BHH_propagator(nodes, edges, num_bosons=num_bosons, μ=μ, U=U,
                                     include_coupling=include_coupling,
@@ -174,6 +160,7 @@ def construct_BHH_propagator_2d_grid(nx, ny, toroidal=False,
                                     normalize_μ_U_by_iteration_time=normalize_μ_U_by_iteration_time,
                                     ordering=ordering,
                                     use_ponomarev=use_ponomarev,
+                                    subdivide_iterations=subdivide_iterations,
                                     display_progress=display_progress)
 
 
@@ -190,6 +177,7 @@ def construct_BHH_propagator_ladder(length, width=2,
                                     normalize_μ_U_by_iteration_time=True,
                                     ordering="edges",
                                     use_ponomarev=True,
+                                    subdivide_iterations=False,
                                     display_progress=False):
     if hopping_phase_mode not in ["rung", "translation_invariant"]:
         raise ValueError("Bad value for argument hopping_phase_mode")
@@ -224,6 +212,7 @@ def construct_BHH_propagator_ladder(length, width=2,
                                     normalize_μ_U_by_iteration_time=normalize_μ_U_by_iteration_time,
                                     ordering=ordering,
                                     use_ponomarev=use_ponomarev,
+                                    subdivide_iterations=subdivide_iterations,
                                     display_progress=display_progress)
 
 
@@ -238,6 +227,7 @@ def construct_BHH_propagator_1d_line(num_nodes, toroidal=False,
                                      normalize_μ_U_by_iteration_time=True,
                                      ordering="edges",
                                      use_ponomarev=True,
+                                     subdivide_iterations=False,
                                      display_progress=False):
     nodes = list(range(num_nodes))
     edges = []
@@ -251,4 +241,5 @@ def construct_BHH_propagator_1d_line(num_nodes, toroidal=False,
                                     normalize_μ_U_by_iteration_time=normalize_μ_U_by_iteration_time,
                                     ordering=ordering,
                                     use_ponomarev=use_ponomarev,
+                                    subdivide_iterations=subdivide_iterations,
                                     display_progress=display_progress)

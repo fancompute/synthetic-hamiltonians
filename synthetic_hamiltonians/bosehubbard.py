@@ -1,9 +1,7 @@
 import numpy as np
 
-from functools import reduce
 import qutip as qt
 
-from synthetic_hamiltonians.mzi import interact_bin_bin
 from synthetic_hamiltonians.operators import annihilator_for_site
 from synthetic_hamiltonians.ponomarev import ponomarev_index
 from synthetic_hamiltonians.utils import tqdm
@@ -94,11 +92,11 @@ def BHH_2d_grid(nx, ny, toroidal=False,
         for x in range(nx):
             if x < nx - 1:  # we're not at the right edge
                 edges.append(((nodes_xy[y, x], nodes_xy[y, x + 1]), κ, 0))
-            elif toroidal:
+            elif toroidal == True or toroidal == "x":
                 edges.append(((nodes_xy[y, x], nodes_xy[y, (x + 1) % nx]), κ, 0))
             if y < ny - 1:  # we're not at the bottom edge
                 edges.append(((nodes_xy[y, x], nodes_xy[y + 1, x]), κ, 0))
-            elif toroidal:
+            elif toroidal == True or toroidal == "y":
                 edges.append(((nodes_xy[y, x], nodes_xy[(y + 1) % ny, x]), κ, 0))
     return make_BH_Hamiltonian(nodes, edges, num_bosons=num_bosons, μ=μ, U=U,
                                include_coupling=include_coupling,

@@ -1,6 +1,5 @@
 from scipy.special import comb
 
-
 def ponomarev_index(N, M, exact_boson_number=True):
     '''Computes 𝒩_N^M for N bosons and M sites'''
     if exact_boson_number:
