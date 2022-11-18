@@ -18,13 +18,17 @@ This repository contains supporting simulations for the paper "Programmable phot
 
 ## Citing
 
-[TODO: pending PRL and arXiv submission] If you found this paper or repository useful, please cite us using:
+If you found this paper or supplementary code useful, please cite us using:
 
 ```
 @article{Bartlett2022Programmable,
-    TODO
-    TODO
-    TODO
+    title={Programmable photonic system for quantum simulation in arbitrary topologies},
+    author={Ben Bartlett and Olivia Y. Long and Avik Dutt and Shanhui Fan},
+    year={2022},
+    eprint={2211.09805},
+    archivePrefix={arXiv},
+    primaryClass={quant-ph}
 }
 ```
+
 
